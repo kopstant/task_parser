@@ -63,6 +63,7 @@ async def handle_difficulty(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         return 0
 
+
 async def handle_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.callback_query.answer()
     topic = update.callback_query.data.replace('topic_', '')
