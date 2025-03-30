@@ -1,4 +1,4 @@
-from celery_config.celery_app import app
+from src.celery.celery_app import app
 from src.parser.codeforces_api import parse_and_save_problems
 from src.database.base import SessionLocal
 from src.database.models import Problem
@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 @app.task(bind=True, name='parse_codeforces_problems', queue='parsing')
 def parse_codeforces_problems(self):
     """Фоновая задача для парсинга задач с Codeforces"""
+    from src.database.base import check_db_connection
+    if not check_db_connection():
+        raise Exception("Database connection failed")
     try:
         logger.info("Starting Codeforces parsing task")
 

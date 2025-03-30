@@ -31,32 +31,38 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def handle_difficulty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
-        # Очищаем введенный текст от лишних пробелов
         rating_input = update.message.text.strip()
-        logging.info(f"Пользователь ввел: '{rating_input}'")
-
-        # Преобразуем строку в число
-        rating = int(rating_input)  # Попробуем сразу преобразовать в число
-        logging.info(f"Преобразуем значение {rating_input} в число {rating}")
-
+        rating = int(rating_input)
         context.user_data['rating'] = rating
 
         db = SessionLocal()
-        topics = db.execute(text("SELECT DISTINCT name FROM topics")).fetchall()
-        logging.info(f"Topics from DB before processing: {topics}")
-        db.close()
+        try:
+            # Добавляем логирование запроса
+            logging.info("Fetching topics from database...")
+            topics = db.execute(text("SELECT DISTINCT name FROM topics ORDER BY name")).fetchall()
+            logging.info(f"Raw topics from DB: {topics}")
 
-        topics = [topic[0].encode('utf-8', 'ignore').decode('utf-8', 'ignore') for topic in topics]
-        logging.info(f"Processed topics: {topics}")
+            if not topics:
+                logging.warning("No topics found in database!")
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text="В базе данных нет доступных тем. Попробуйте позже после обновления данных."
+                )
+                return ConversationHandler.END
 
-        await context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="Отлично! Теперь выбери тему:",
-            reply_markup=get_topics_keyboard(topics)
-        )
-        return 1
-    except ValueError as e:
-        logging.error(f"Ошибка при преобразовании: {rating_input} | Exception: {e}")
+            topics = [topic[0] for topic in topics]  # Извлекаем только названия
+            logging.info(f"Processed topics: {topics}")
+
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Отлично! Теперь выбери тему:",
+                reply_markup=get_topics_keyboard(topics)
+            )
+            return 1
+        finally:
+            db.close()
+
+    except ValueError:
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text="Пожалуйста, введите число (например, 800)"
@@ -65,12 +71,25 @@ async def handle_difficulty(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def handle_topic(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    await update.callback_query.answer()
-    topic = update.callback_query.data.replace('topic_', '')
+    query = update.callback_query
+    await query.answer()
+
+    topic = query.data.replace('topic_', '')
     context.user_data['topic'] = topic
 
-    await show_problems(update, context)
-    return -1
+    # Добавляем лог для отладки
+    logging.info(f"Selected topic: {topic}, user_data: {context.user_data}")
+
+    try:
+        await show_problems(update, context)
+    except Exception as e:
+        logging.error(f"Error in show_problems: {str(e)}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Произошла ошибка при поиске задач. Попробуйте позже."
+        )
+
+    return ConversationHandler.END  # Явно завершаем диалог
 
 
 async def show_problems(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -78,25 +97,35 @@ async def show_problems(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     rating = user_data.get('rating')
     topic = user_data.get('topic')
 
-    db = SessionLocal()
-    problems = get_problems_by_filter(db, rating=rating, topic=topic)
-    db.close()
+    logging.info(f"Searching problems with rating={rating}, topic={topic}")
 
-    if not problems:
+    try:
+        db = SessionLocal()
+        problems = get_problems_by_filter(db, rating=rating, topic=topic)
+
+        if not problems:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Задачи не найдены. Попробуйте другие параметры."
+            )
+            return
+
+        response = [format_problem_message(problem) for problem in problems[:10]]
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text="Задачи не найдены. Попробуйте другие параметры."
+            text="\n\n".join(response),
+            parse_mode='HTML',
+            disable_web_page_preview=True
         )
-        return
 
-    response = [format_problem_message(problem) for problem in problems[:10]]
-
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="\n\n".join(response),
-        parse_mode='HTML',
-        disable_web_page_preview=True
-    )
+    except Exception as e:
+        logging.error(f"Error in show_problems: {str(e)}")
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Произошла ошибка при поиске задач. Попробуйте позже."
+        )
+    finally:
+        db.close()  # Гарантированное закрытие соединения
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:

@@ -1,14 +1,13 @@
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler
 from src.config import config
-from src.database.base import init_db
+from src.database.base import init_db, check_db_connection
 from .handlers import start, handle_difficulty, handle_topic, show_problems, cancel
-from celery_config.tasks import parse_codeforces_problems
 
 
 def main():
     # Инициализируем базу данных, создаем таблицы
     init_db()
-    parse_codeforces_problems()  # Инициализация периодических задач
+    #parse_codeforces_problems()  # Инициализация периодических задач. Так нельзя, либо через .delay()
 
     app = Application.builder().token(config.TELEGRAM_TOKEN).build()
 
@@ -39,4 +38,5 @@ def main():
 
 
 if __name__ == '__main__':
+    check_db_connection()
     main()

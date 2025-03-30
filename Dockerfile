@@ -1,7 +1,7 @@
 FROM python:3.12
 
 # Устанавливаем рабочую директорию
-WORKDIR /code
+WORKDIR /app
 
 # Копируем файлы зависимостей
 COPY poetry.lock pyproject.toml ./
@@ -18,6 +18,8 @@ RUN python -m pip install --no-cache-dir poetry && \
 
 # Копируем весь проект
 COPY . .
+
+ENV PYTHONPATH=/app
 
 # Запускаем
 CMD ["python", "-m", "src.bot.main"]
