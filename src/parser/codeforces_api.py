@@ -6,7 +6,7 @@ from datetime import datetime, UTC
 import logging
 import time
 from src.database.base import SessionLocal
-from src.database.crud import create_problem
+from src.database.crud import create_problems_batch
 from sqlalchemy import text, exc
 
 # Настройка логгирования
@@ -17,6 +17,7 @@ BASE_URL = "https://codeforces.com/api"
 MAX_RETRIES = 3
 TIMEOUT = 10
 RATE_LIMIT_WAIT = 5  # секунды ожидания при 429
+BATCH_SIZE = 100  # Размер пакета для сохранения в БД
 
 
 class CodeforcesAPIError(Exception):
@@ -92,54 +93,48 @@ def process_problems(problems: List[Dict], problem_stats: List[Dict]) -> List[Di
 
 
 def save_problems_to_db(problems: List[Dict]) -> None:
+    """
+    Сохранение задач в базу данных пакетами
+    """
     db = SessionLocal()
     try:
-        for problem_data in problems:
-            try:
-                # Добавим логирование перед сохранением
-                print(f"Processing: {problem_data['contest_id']}{problem_data['index']} - {problem_data['name']}")
+        total_problems = len(problems)
+        logger.info(f"Starting to save {total_problems} problems in batches of {BATCH_SIZE}")
 
-                create_problem(
-                    db,
-                    contest_id=problem_data['contest_id'],
-                    index=problem_data['index'],
-                    name=problem_data['name'],
-                    rating=problem_data.get('rating'),
-                    solved_count=problem_data['solved_count'],
-                    tags=problem_data['tags']
-                )
-                db.commit()  # Фиксируем после каждой задачи
+        # Разбиваем задачи на пакеты
+        for i in range(0, total_problems, BATCH_SIZE):
+            batch = problems[i:i + BATCH_SIZE]
+            logger.info(f"Processing batch {i//BATCH_SIZE + 1} of {(total_problems + BATCH_SIZE - 1)//BATCH_SIZE}")
+            
+            try:
+                create_problems_batch(db, batch)
+                logger.info(f"Batch {i//BATCH_SIZE + 1} saved successfully")
             except Exception as e:
+                logger.error(f"Error saving batch: {str(e)}")
                 db.rollback()
-                print(f"Error saving problem {problem_data['contest_id']}{problem_data['index']}: {str(e)}")
                 continue
+
     finally:
         db.close()
 
 
 def parse_and_save_problems() -> Dict[str, any]:
-    """
-    Основная функция парсинга и сохранения задач с возвратом статистики
-    """
-    logger.info(f"Starting parsing at {datetime.now(UTC).isoformat()}")
     try:
-        problems, problem_stats = fetch_problems()
-        processed_problems = process_problems(problems, problem_stats)
-        save_problems_to_db(processed_problems)
+        logger.info("=== Начало парсинга ===")
+        problems, stats = fetch_problems()
+        processed = process_problems(problems, stats)
 
-        result = {
-            'status': 'success',
-            'total_problems': len(processed_problems),
-            'timestamp': datetime.now(UTC).isoformat()
-        }
-        logger.info(f"Parsing completed: {result}")
-        return result
+        logger.info(f"Получено задач: {len(processed)}")
+        save_problems_to_db(processed)
 
+        db = SessionLocal()
+        try:
+            topics_count = db.execute(text("SELECT COUNT(*) FROM topics")).scalar()
+            logger.info(f"Тем в БД после сохранения: {topics_count}")
+        finally:
+            db.close()
+
+        return {"status": "success", "count": len(processed)}
     except Exception as e:
-        error_msg = f"Parsing failed: {str(e)}"
-        logger.error(error_msg)
-        return {
-            'status': 'error',
-            'error': error_msg,
-            'timestamp': datetime.now(UTC).isoformat()
-        }
+        logger.error(f"!!! Ошибка парсинга: {str(e)}")
+        raise

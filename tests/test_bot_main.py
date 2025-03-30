@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch, call, AsyncMock
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -34,18 +34,42 @@ def mock_handlers():
         }
 
 
-def test_main_initialization(mock_app, mock_handlers):
+@pytest.fixture(autouse=True)
+def mock_db_init():
+    async_init_parser = AsyncMock()
+    with patch('src.bot.main.init_db') as mock_init_db, \
+         patch('src.bot.main.init_parser', new=async_init_parser) as mock_init_parser, \
+         patch('src.bot.main.asyncio.get_event_loop') as mock_loop:
+        mock_loop.return_value.run_until_complete = MagicMock()
+        yield {
+            'init_db': mock_init_db,
+            'init_parser': mock_init_parser,
+            'loop': mock_loop
+        }
+
+
+def test_main_initialization(mock_app, mock_handlers, mock_db_init):
     with patch('telegram.ext.Application.builder') as mock_builder:
         mock_builder.return_value.token.return_value.build.return_value = mock_app
 
         main()
 
+        # Проверяем инициализацию базы данных
+        mock_db_init['init_db'].assert_called_once()
+        
+        # Проверяем запуск парсера
+        mock_db_init['loop'].return_value.run_until_complete.assert_called_once()
+        
+        # Проверяем инициализацию бота
         mock_builder.assert_called_once()
-        mock_app.add_handler.assert_called()
+        mock_builder.return_value.token.assert_called_once_with('test_token')
+        mock_builder.return_value.token.return_value.build.assert_called_once()
+        
+        # Проверяем запуск бота
         mock_app.run_polling.assert_called_once()
 
 
-def test_handlers_registration(mock_app, mock_handlers):
+def test_handlers_registration(mock_app, mock_handlers, mock_db_init):
     with patch('telegram.ext.Application.builder') as mock_builder:
         mock_builder.return_value.token.return_value.build.return_value = mock_app
 
@@ -72,10 +96,10 @@ def test_handlers_registration(mock_app, mock_handlers):
         # Проверяем что вторым добавляется CommandHandler для /show
         second_handler = mock_app.add_handler.call_args_list[1][0][0]
         assert isinstance(second_handler, CommandHandler)
-        assert 'show' in second_handler.commands  # Изменённая проверка
+        assert 'show' in second_handler.commands
 
 
-def test_conversation_handler_details(mock_app, mock_handlers):
+def test_conversation_handler_details(mock_app, mock_handlers, mock_db_init):
     with patch('telegram.ext.Application.builder') as mock_builder:
         mock_builder.return_value.token.return_value.build.return_value = mock_app
         mock_conv_handler = MagicMock(spec=ConversationHandler)
@@ -90,7 +114,7 @@ def test_conversation_handler_details(mock_app, mock_handlers):
 
 
 @pytest.mark.asyncio
-async def test_polling_start(mock_app, mock_handlers):
+async def test_polling_start(mock_app, mock_handlers, mock_db_init):
     with patch('telegram.ext.Application.builder') as mock_builder:
         mock_app.run_polling = MagicMock()
         mock_builder.return_value.token.return_value.build.return_value = mock_app

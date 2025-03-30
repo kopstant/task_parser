@@ -1,30 +1,23 @@
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import Update
 from telegram.ext import ContextTypes
 from src.database.base import SessionLocal
 from src.database.crud import get_problems_by_filter
 from src.utils.helpers import format_problem_message
 from sqlalchemy import text
 from telegram.ext import ConversationHandler
+from src.bot.keyboards import get_topics_keyboard, get_difficulty_keyboard
 import logging
 
 logging.basicConfig(level=logging.INFO)
-
-
-def get_topics_keyboard(topics):
-    keyboard = []
-    for i in range(0, len(topics), 2):
-        row = []
-        for topic in topics[i:i + 2]:
-            row.append(InlineKeyboardButton(topic, callback_data=f"topic_{topic}"))
-        keyboard.append(row)
-    return InlineKeyboardMarkup(keyboard)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Привет! Я помогу тебе найти задачи на Codeforces.\n"
-             "Введи сложность задачи (например, 800) или /cancel для отмены:"
+             "Введи сложность задачи (800-2000, с шагом в 200).\n"
+             "/cancel для отмены:",
+        reply_markup=get_difficulty_keyboard()
     )
     return 0
 
@@ -131,6 +124,6 @@ async def show_problems(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Отменяет текущий диалог и сбрасывает состояние"""
     await update.message.reply_text("Поиск отменён. Начните заново командой /start")
-    # Очищаем user_data если нужно
+    # Очищаем user_data
     context.user_data.clear()
     return ConversationHandler.END  # Завершаем диалог

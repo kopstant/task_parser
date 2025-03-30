@@ -11,59 +11,91 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_NAME}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     ports:
       - "6379:6379"
     command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  celery_worker:
+  celery-worker:
     build: .
-    user: "root"
-    command: celery -A src.celery.celery_app worker --loglevel=info -Q parsing,default --without-heartbeat --without-gossip --without-mingle
+    command: celery -A src.celery.celery_app worker -l info -Q default,parsing -E --hostname=worker@%h
     environment:
-      - DEBUG=${DEBUG}
-      - TZ=Europe/Moscow
       - PYTHONPATH=/app
-    depends_on:
-      - redis
-      - db
-
-  celery_beat:
-    build: .
-    command: celery -A src.celery.celery_app:app beat --loglevel=info
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - C_FORCE_ROOT=1
     volumes:
-      - ./celerybeat:/var/celery
-    environment:
-      - TZ=Europe/Moscow
-      - CELERYBEAT_SCHEDULE_FILE=/var/celery/celerybeat-schedule
+      - .:/app
     depends_on:
-      - redis
-      - db
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  celery-beat:
+    build: .
+    command: celery -A src.celery.celery_app beat -l info
+    environment:
+      - PYTHONPATH=/app
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    restart: unless-stopped
+    volumes:
+      - .:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+
+  init-db:
+    build: .
+    working_dir: /app
+    command: >
+      sh -c "
+      timeout 300 python -m src.database.init_db ||
+      (echo 'Initialization failed or timed out' && exit 1)
+      "
+    environment:
+      - PYTHONPATH=/app
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_NAME}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
   telegram_bot:
     build: .
-    command: python -m src.bot.main  # Укажите правильный путь к вашему основному файлу бота
+    command: python -m src.bot.main
     environment:
-      - PYTHONPATH=/app/src  # Основной путь к вашим модулям
-      - PYTHONPATH=${PYTHONPATH}:/app  # Дополнительные пути
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}  # Токен из переменных окружения
+      - PYTHONPATH=/app
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_NAME}
       - REDIS_URL=redis://redis:6379/0
-      - DEBUG=${DEBUG}
+      - DEBUG=${DEBUG:-False}
     depends_on:
-      - db
-      - redis
+      init-db:
+        condition: service_completed_successfully
+      celery-worker:
+        condition: service_started
+      celery-beat:
+        condition: service_started
     volumes:
-      - .:/app  # Для разработки, чтобы изменения применялись без пересборки
-    restart: unless-stopped  # Автоматически перезапускать при падении
-
-  flower:
-    image: mher/flower
-    command: celery flower --app=src.celery.celery_app --broker=redis://redis:6379/0
-    ports:
-      - "5555:5555"
+      - .:/app
+    restart: unless-stopped
 
 volumes:
   postgres_data:

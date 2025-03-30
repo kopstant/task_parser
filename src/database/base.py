@@ -9,7 +9,7 @@ engine_args = {
     'echo': False
 }
 
-DB_URL = f"postgresql://{config.POSTGRES_USER}:{config.POSTGRES_PASSWORD}@db:5432/{config.POSTGRES_DB}"
+DB_URL = config.DATABASE_URL
 
 engine = create_engine(DB_URL, **engine_args)
 SessionLocal = sessionmaker(
