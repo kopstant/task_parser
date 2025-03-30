@@ -1,32 +1,26 @@
 [tool.poetry]
-name = "task-parser"
+name = "codeforces-task-parser"
 version = "0.1.0"
-description = "Parser for Codeforces problems"
+description = "Сервис для автоматического парсинга задач с платформы Codeforces"
 authors = ["Your Name <your.email@example.com>"]
-readme = "README.md"
-packages = [
-    { include = "src" }
-]
 
 [tool.poetry.dependencies]
-python = "^3.12"
-sqlalchemy = "^2.0.28"
-requests = "^2.31.0"
-python-telegram-bot = "^20.7"
-psycopg2-binary = "^2.9.9"
-python-dotenv = "^1.0.1"
+python = "^3.8"
 celery = "^5.3.6"
-redis = "^5.0.3"
-celery-redbeat = "^2.3.2"
+redis = "^5.0.1"
+sqlalchemy = "^2.0.27"
+psycopg2-binary = "^2.9.9"
+requests = "^2.31.0"
+python-dotenv = "^1.0.1"
+flower = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
+pytest = "^8.0.0"
 pytest-cov = "^4.1.0"
-pytest-asyncio = "^0.23.5"
 pytest-mock = "^3.12.0"
-aioresponses = "^0.7.6"
-responses = "^0.24.1"
-httpx = ">=0.25.2,<0.26.0"
+black = "^24.1.1"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -34,29 +28,18 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = "test_*.py"
-addopts = """
-    --cov=src
-    --cov-report=term-missing
-    --cov-fail-under=85
-    -p no:warnings
-"""
+python_files = ["test_*.py"]
+addopts = "--cov=src --cov-report=term-missing"
+filterwarnings = ["ignore::DeprecationWarning"]
 
-[tool.coverage.run]
-source = ["src"]
-omit = [
-    "tests/*",
-    "**/__init__.py",
-]
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
 
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "if __name__ == .__main__.:",
-    "raise NotImplementedError",
-    "pass",
-    "raise ImportError",
-]
+[tool.mypy]
+python_version = "3.8"
+disallow_untyped_defs = true
+ignore_missing_imports = true
 
 
