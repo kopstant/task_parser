@@ -1,11 +1,16 @@
 # Codeforces Task Parser
 
-Сервис для автоматического парсинга задач с платформы Codeforces. Проект использует Celery для периодического сбора данных и SQLAlchemy для работы с базой данных.
+Сервис для автоматического парсинга задач с платформы Codeforces с Telegram ботом для удобного поиска задач. Проект использует Celery для периодического сбора данных и SQLAlchemy для работы с базой данных.
 
 ## Основные возможности
 
 - Автоматический сбор задач с Codeforces
 - Периодическое обновление базы данных (каждый час)
+- Telegram бот для поиска задач:
+  - Поиск по сложности
+  - Поиск по темам
+  - Получение случайной задачи
+  - Просмотр статистики решений
 - Хранение информации о задачах, включая:
   - ID контеста
   - Индекс задачи
@@ -18,6 +23,7 @@
 ## Технологический стек
 
 - Python 3.8+
+- python-telegram-bot для создания Telegram бота
 - Celery для асинхронных задач
 - Redis как брокер сообщений
 - PostgreSQL для хранения данных
@@ -30,6 +36,7 @@
 - Redis
 - PostgreSQL
 - Poetry
+- Telegram Bot Token (получить у @BotFather)
 
 ## Установка
 
@@ -46,9 +53,15 @@ poetry install
 
 3. Создайте файл `.env` в корневой директории проекта:
 ```env
+# Database
 DATABASE_URL=postgresql://user:password@localhost:5432/codeforces_parser
+
+# Celery
 CELERY_BROKER_URL=redis://redis:6379/0
 CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+# Telegram
+TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
 ## Запуск
@@ -78,6 +91,23 @@ poetry run celery -A src.celery.celery_app worker --loglevel=info -Q parsing
 poetry run celery -A src.celery.celery_app beat --loglevel=info
 ```
 
+6. Запустите Telegram бота:
+```bash
+poetry run python -m src.bot.main
+```
+
+## Использование бота
+
+1. Найдите бота в Telegram по его имени
+2. Отправьте команду `/start` для начала работы
+3. Доступные команды:
+   - `/help` - показать справку
+   - `/search` - поиск задач по параметрам
+   - `/random` - получить случайную задачу
+   - `/topic` - поиск задач по теме
+   - `/rating` - поиск задач по сложности
+   - `/stats` - показать статистику решений
+
 ## Тестирование
 
 Для запуска тестов используйте команду:
@@ -95,6 +125,10 @@ poetry run pytest --cov=src
 ```
 task_parser/
 ├── src/
+│   ├── bot/
+│   │   ├── main.py        # Точка входа для Telegram бота
+│   │   ├── handlers.py    # Обработчики команд бота
+│   │   └── keyboards.py   # Клавиатуры и кнопки
 │   ├── celery/
 │   │   ├── celery_app.py  # Конфигурация Celery
 │   │   └── tasks.py       # Определение задач Celery
