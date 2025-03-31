@@ -1,4 +1,3 @@
-import pytest
 from telegram import InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from src.bot.keyboards import get_topics_keyboard, get_difficulty_keyboard
 

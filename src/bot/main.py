@@ -1,14 +1,31 @@
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ConversationHandler
 from src.config import config
-from src.database.base import init_db
+from src.database.base import init_db, check_db_connection
 from .handlers import start, handle_difficulty, handle_topic, show_problems, cancel
-from celery_config.tasks import parse_codeforces_problems
+from src.parser.codeforces_api import parse_and_save_problems
+import asyncio
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+async def init_parser():
+    """Инициализация парсера при запуске"""
+    try:
+        logger.info("Starting initial parsing...")
+        result = parse_and_save_problems()
+        logger.info(f"Initial parsing completed: {result}")
+    except Exception as e:
+        logger.error(f"Error during initial parsing: {str(e)}")
 
 
 def main():
     # Инициализируем базу данных, создаем таблицы
     init_db()
-    parse_codeforces_problems()  # Инициализация периодических задач
+
+    # Запускаем первоначальный парсинг
+    asyncio.get_event_loop().run_until_complete(init_parser())
 
     app = Application.builder().token(config.TELEGRAM_TOKEN).build()
 
@@ -39,4 +56,5 @@ def main():
 
 
 if __name__ == '__main__':
+    check_db_connection()
     main()

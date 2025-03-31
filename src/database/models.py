@@ -7,8 +7,8 @@ from src.database.base import Base
 problem_topic_association = Table(
     'problem_topic_association',
     Base.metadata,
-    Column('problem_id', Integer, ForeignKey('problems.id'), primary_key=True),
-    Column('topic_id', Integer, ForeignKey('topics.id'), primary_key=True)
+    Column('problem_id', Integer, ForeignKey('problems.id', ondelete='CASCADE'), primary_key=True),
+    Column('topic_id', Integer, ForeignKey('topics.id', ondelete='CASCADE'), primary_key=True)
 )
 
 
@@ -28,7 +28,8 @@ class Problem(Base):
         "Topic",
         secondary=problem_topic_association,
         back_populates="problems",
-        cascade="all, delete"  # Добавлено каскадирование
+        cascade="all, delete",
+        passive_deletes=True
     )
 
     def __repr__(self):
@@ -46,7 +47,9 @@ class Topic(Base):
     problems = relationship(
         "Problem",
         secondary=problem_topic_association,
-        back_populates="topics"
+        back_populates="topics",
+        cascade="all, delete",
+        passive_deletes=True
     )
 
     def __repr__(self):

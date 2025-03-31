@@ -6,6 +6,7 @@ from telegram import (
 )
 from typing import List
 
+
 def get_topics_keyboard(topics: List[str]) -> InlineKeyboardMarkup:
     """Создает inline-клавиатуру с темами (без кнопки отмены)"""
     keyboard = []
@@ -17,6 +18,7 @@ def get_topics_keyboard(topics: List[str]) -> InlineKeyboardMarkup:
         keyboard.append(row)
     return InlineKeyboardMarkup(keyboard)
 
+
 def get_difficulty_keyboard() -> ReplyKeyboardMarkup:
     """Создает клавиатуру с популярными сложностями (без кнопки отмены)"""
     difficulties = ['800', '1000', '1200', '1400', '1600', '1800', '2000']
@@ -27,5 +29,6 @@ def get_difficulty_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard,
         one_time_keyboard=True,
-        resize_keyboard=True
+        resize_keyboard=True,
+        input_field_placeholder="Выберите сложность"
     )

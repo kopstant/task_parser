@@ -1,26 +1,49 @@
 [tool.poetry]
-name = "task-parser"
+name = "codeforces-task-parser"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
-readme = "README.md"
+description = "Сервис для автоматического парсинга задач с платформы Codeforces"
+authors = ["Your Name <your.email@example.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-sqlalchemy = "^2.0.39"
-requests = "^2.32.3"
-python-telegram-bot = "^22.0"
-psycopg2-binary = "^2.9.10"
-python-dotenv = "^1.1.0"
-pytest = "^8.3.5"
-pytest-cov = "^6.0.0"
-celery = "^5.4.0"
-redis = "^5.2.1"
-pytest-asyncio = "^0.26.0"
+celery = "^5.3.6"
+redis = "^5.0.1"
+sqlalchemy = "^2.0.27"
+psycopg2-binary = "^2.9.9"
+requests = "^2.31.0"
+python-dotenv = "^1.0.1"
+flower = "^2.0.1"
+python-telegram-bot = "^20.7"
+flake8 = "^7.2.0"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.12.0"
+black = "^24.1.1"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+pytest-asyncio = "^0.23.5"
+aioresponses = "^0.7.6"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=src --cov-report=term-missing"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.mypy]
+python_version = "3.8"
+disallow_untyped_defs = true
+ignore_missing_imports = true
 
 

@@ -11,7 +11,6 @@ class TestConfig(unittest.TestCase):
         config = Config()
         self.assertEqual(config.TELEGRAM_TOKEN, 'dummy_token')
 
-
     @patch.dict(os.environ, {'POSTGRES_HOST': 'db'})
     def test_postgres_host_default(self):
         config = Config()
@@ -31,7 +30,6 @@ class TestConfig(unittest.TestCase):
     def test_postgres_password(self):
         config = Config()
         self.assertEqual(config.POSTGRES_PASSWORD, 'b20d5fcd')
-
 
     @patch.dict(os.environ, {'POSTGRES_HOST': 'db', 'POSTGRES_USER': 'postgres', 'POSTGRES_PASSWORD': 'b20d5fcd'})
     def test_postgres_configuration(self):

@@ -35,18 +35,18 @@ class Config:
     # Основная база данных
     @property
     def DATABASE_URL(self):
+        if self.TESTING:
+            return "sqlite:///:memory:"
         if url := os.getenv('DATABASE_URL'):
             return url
         password = self.POSTGRES_PASSWORD
-        return f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:"
+                f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}")
 
     # Тестовая база данных
     @property
     def TEST_DATABASE_URL(self):
-        if url := os.getenv('TEST_DATABASE_URL'):
-            return url
-        password = self.POSTGRES_PASSWORD
-        return f"postgresql://{self.POSTGRES_USER}:{password}@localhost:5432/{self.POSTGRES_DB}_test"
+        return "sqlite:///:memory:"
 
 
 config = Config()

@@ -4,14 +4,14 @@ from src.parser.codeforces_api import (
     CodeforcesAPIError,
     fetch_problems,
     process_problems,
-    parse_and_save_problems
+    parse_and_save_problems,
 )
 from tests.test_data import SAMPLE_PROBLEMS, SAMPLE_STATISTICS
 
 
 class TestCodeforcesAPI(unittest.TestCase):
-    @patch('requests.get')
-    def test_fetch_problems_success(self, mock_get):
+    @patch('requests.Session')
+    def test_fetch_problems_success(self, mock_session):
         mock_response = MagicMock()
         mock_response.json.return_value = {
             'status': 'OK',
@@ -20,31 +20,45 @@ class TestCodeforcesAPI(unittest.TestCase):
                 'problemStatistics': SAMPLE_STATISTICS
             }
         }
-        mock_get.return_value = mock_response
+        mock_response.status_code = 200
+        mock_session.return_value.get.return_value = mock_response
 
         problems, stats = fetch_problems()
-        self.assertEqual(len(problems), 2)
-        self.assertEqual(len(stats), 2)
+        self.assertEqual(len(problems), len(SAMPLE_PROBLEMS))
+        self.assertEqual(len(stats), len(SAMPLE_STATISTICS))
+        self.assertEqual(problems[0]['name'], 'Test Problem')
 
-    @patch('requests.get')
-    def test_fetch_problems_failure(self, mock_get):
-        mock_get.side_effect = Exception("API Error")
+    @patch('requests.Session')
+    def test_fetch_problems_failure(self, mock_session):
+        mock_session.return_value.get.side_effect = Exception("API Error")
 
-        try:
+        with self.assertRaises(CodeforcesAPIError) as context:
             fetch_problems()
-            self.fail("Expected CodeforcesAPIError to be raised")
-        except CodeforcesAPIError as e:
-            self.assertIn("Failed after 3 attempts", str(e))
+        self.assertIn("API request failed", str(context.exception))
 
     def test_process_problems(self):
         processed = process_problems(SAMPLE_PROBLEMS, SAMPLE_STATISTICS)
         self.assertEqual(len(processed), 2)
         self.assertEqual(processed[0]['name'], 'Test Problem')
+        self.assertEqual(processed[0]['solved_count'], 100)
         self.assertEqual(processed[1]['solved_count'], 200)
+        self.assertEqual(processed[0]['tags'], ['math'])
+        self.assertEqual(processed[1]['tags'], ['dp'])
 
-    @patch('src.parser.codeforces_api.save_problems_to_db')
     @patch('src.parser.codeforces_api.fetch_problems')
-    def test_parse_and_save_problems(self, mock_fetch, mock_save):
+    @patch('src.parser.codeforces_api.create_problems_batch')
+    def test_parse_and_save_problems(self, mock_create_batch, mock_fetch):
         mock_fetch.return_value = (SAMPLE_PROBLEMS, SAMPLE_STATISTICS)
-        parse_and_save_problems()
-        mock_save.assert_called_once()
+
+        # Мокаем сессию базы данных
+        mock_session = MagicMock()
+        mock_session.execute().scalar.return_value = 0
+
+        with patch('src.parser.codeforces_api.SessionLocal') as mock_session_class:
+            mock_session_class.return_value = mock_session
+            result = parse_and_save_problems()
+
+            self.assertEqual(result['status'], 'success')
+            self.assertEqual(result['count'], len(SAMPLE_PROBLEMS))
+            mock_create_batch.assert_called_once()
+            mock_session.close.assert_called()
