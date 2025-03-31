@@ -1,5 +1,4 @@
 import unittest
-from datetime import datetime
 from src.utils.helpers import (
     format_problem_message,
     validate_rating,

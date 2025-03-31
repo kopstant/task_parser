@@ -5,8 +5,6 @@ from src.parser.codeforces_api import (
     fetch_problems,
     process_problems,
     parse_and_save_problems,
-    MAX_RETRIES,
-    SessionLocal
 )
 from tests.test_data import SAMPLE_PROBLEMS, SAMPLE_STATISTICS
 
@@ -51,15 +49,15 @@ class TestCodeforcesAPI(unittest.TestCase):
     @patch('src.parser.codeforces_api.create_problems_batch')
     def test_parse_and_save_problems(self, mock_create_batch, mock_fetch):
         mock_fetch.return_value = (SAMPLE_PROBLEMS, SAMPLE_STATISTICS)
-        
+
         # Мокаем сессию базы данных
         mock_session = MagicMock()
         mock_session.execute().scalar.return_value = 0
-        
+
         with patch('src.parser.codeforces_api.SessionLocal') as mock_session_class:
             mock_session_class.return_value = mock_session
             result = parse_and_save_problems()
-            
+
             self.assertEqual(result['status'], 'success')
             self.assertEqual(result['count'], len(SAMPLE_PROBLEMS))
             mock_create_batch.assert_called_once()

@@ -1,8 +1,8 @@
 from celery import Celery
-from src.config import config
-from celery.schedules import crontab
 from celery.signals import worker_ready, beat_init
 import logging
+from celery.schedules import crontab
+from src.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,32 @@ app.conf.update(
     result_serializer='json',
     accept_content=['json'],
     enable_utc=True,
-    timezone='UTC'
+    timezone='UTC',
+    task_track_started=True,
+    task_time_limit=3600,  # 1 час
+    worker_prefetch_multiplier=1,
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    task_default_queue='default',
+    task_default_exchange='default',
+    task_default_routing_key='default',
+    task_default_priority=0,
+    task_compression='gzip',
+    task_ignore_result=False,
+    task_store_errors_even_if_ignored=True,
+    task_remote_control_enabled=True,
+    task_send_sent_event=True,
+    task_always_eager=False,
+    task_eager_propagates=True,
+    task_annotations={
+        'src.parser.tasks.parse_codeforces': {
+            'rate_limit': '10/m',
+            'max_retries': 3,
+            'retry_backoff': True,
+            'retry_backoff_max': 600,
+            'retry_jitter': True,
+        }
+    }
 )
 
 # Настройка очередей
@@ -32,24 +57,21 @@ app.conf.task_queues = {
     'parsing': {
         'exchange': 'parsing',
         'routing_key': 'parsing',
+        'queue_arguments': {'x-max-priority': 10},
     }
 }
 
 # Настройка маршрутизации задач
 app.conf.task_routes = {
-    'src.celery.tasks.parse_codeforces': {'queue': 'parsing'}
+    'src.parser.tasks.parse_codeforces': {'queue': 'parsing'}
 }
 
 # Настройка периодических задач
 app.conf.beat_schedule = {
-    'parse-codeforces-hourly': {
-        'task': 'src.celery.tasks.parse_codeforces',
-        'schedule': 3600,  # Каждый час
-        'options': {
-            'queue': 'parsing',
-            'expires': 3500,  # Задача истекает через час
-        }
-    }
+    'parse-codeforces': {
+        'task': 'src.parser.tasks.parse_codeforces',
+        'schedule': crontab(minute=0, hour='*'),  # Каждый час
+    },
 }
 
 # Настройка повторных попыток
@@ -57,11 +79,12 @@ app.conf.task_acks_late = True  # Подтверждение выполнени�
 app.conf.task_reject_on_worker_lost = True  # Перезапуск задачи при потере воркера
 
 
-def init_celery(sender):
+def init_celery(**kwargs):
     """
     Инициализация Celery при старте воркера
     """
-    if sender.app.amqp.default_queue.name == 'parsing':
+    sender = kwargs.get('sender')
+    if sender and sender.app.amqp.default_queue.name == 'parsing':
         logger.info("Starting initial parsing task")
         from src.celery.tasks import parse_codeforces
         parse_codeforces.delay()
@@ -71,18 +94,15 @@ def init_celery(sender):
 
 # Логирование при старте beat
 @beat_init.connect
-def on_beat_init(sender, **kwargs):
-    logger.info("Celery beat started. Scheduled tasks:")
-    for task_name, task_config in sender.app.conf.beat_schedule.items():
-        logger.info(f"Task: {task_name}")
-        logger.info(f"  - Schedule: {task_config['schedule']}")
-        logger.info(f"  - Queue: {task_config.get('options', {}).get('queue', 'default')}")
+def on_beat_init(**kwargs):
+    """Инициализация при запуске Celery beat"""
+    logger.info("Celery beat started")
 
 
 # Обработчик сигнала готовности воркера
 @worker_ready.connect
-def at_start(sender, **kwargs):
+def at_start(**kwargs):
     """
     Запускает парсинг при старте воркера, если он обрабатывает очередь parsing
     """
-    init_celery(sender)
+    init_celery(**kwargs)

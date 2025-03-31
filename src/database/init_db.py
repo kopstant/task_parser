@@ -1,4 +1,4 @@
-from src.database.base import init_db, SessionLocal, engine
+from src.database.base import init_db, engine
 from src.parser.codeforces_api import parse_and_save_problems
 import logging
 import signal
@@ -8,17 +8,19 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class TimeoutException(Exception):
     pass
+
 
 @contextmanager
 def timeout(time):
     def signal_handler(signum, frame):
         raise TimeoutException()
-    
+
     # Register a function to raise a TimeoutException on the signal
     signal.signal(signal.SIGALRM, signal_handler)
-    
+
     try:
         signal.alarm(time)  # Trigger alarm in `time` seconds
         yield
@@ -55,5 +57,6 @@ def main():
         logger.error(f"Error during initialization: {str(e)}")
         sys.exit(1)  # Выход с ошибкой
 
+
 if __name__ == "__main__":
-    main() 
+    main()

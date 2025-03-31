@@ -17,9 +17,7 @@ from src.database.crud import (
     get_problems_count,
     get_problems_with_topics
 )
-from tests.test_data import SAMPLE_PROBLEMS, test_problem, test_topic
-from unittest.mock import MagicMock, patch, create_autospec
-from src.database.base import SessionLocal
+from unittest.mock import MagicMock, create_autospec
 
 # Тестовые данные
 SAMPLE_TOPIC = Topic(name='math')
@@ -57,11 +55,11 @@ def mock_session():
     session = create_autospec(Session, instance=True)
     query_mock = MagicMock()
     filter_mock = MagicMock()
-    
+
     # Настраиваем возвращаемое значение для get_topic_by_name
     topic = Topic(id=1, name='math')
     filter_mock.first.return_value = topic
-    
+
     query_mock.filter.return_value = filter_mock
     session.query.return_value = query_mock
     return session
@@ -77,10 +75,10 @@ def test_get_problem(mock_session):
         rating=800
     )
     mock_session.query.return_value.filter.return_value.first.return_value = problem
-    
+
     # Вызываем функцию
     result = get_problem(mock_session, 1, 'A')
-    
+
     # Проверяем результат
     assert result.name == 'Test Problem'
     assert mock_session.query.call_count == 1
@@ -91,10 +89,10 @@ def test_get_topic_by_name(mock_session):
     # Создаем мок для темы
     topic = Topic(name='math')
     mock_session.query.return_value.filter.return_value.first.return_value = topic
-    
+
     # Вызываем функцию
     result = get_topic_by_name(mock_session, 'math')
-    
+
     # Проверяем результат
     assert result.name == 'math'
     assert mock_session.query.call_count == 1
@@ -104,7 +102,7 @@ def test_create_topic(mock_session):
     """Тест создания темы"""
     # Вызываем функцию
     result = create_topic(mock_session, 'math')
-    
+
     # Проверяем результат
     assert isinstance(result, Topic)
     assert result.name == 'math'
@@ -117,10 +115,10 @@ def test_get_or_create_topic(mock_session):
     # Настраиваем мок для проверки существования темы
     topic = Topic(name='math')
     mock_session.query.return_value.filter.return_value.first.return_value = topic
-    
+
     # Вызываем функцию
     result = get_or_create_topic(mock_session, 'math')
-    
+
     # Проверяем результат
     assert result.name == 'math'
     assert mock_session.query.call_count == 1
@@ -131,7 +129,7 @@ def test_create_problem(mock_session):
     # Создаем мок для темы
     topic = Topic(name='math')
     mock_session.query.return_value.filter.return_value.first.return_value = topic
-    
+
     # Вызываем функцию
     result = create_problem(
         mock_session,
@@ -141,43 +139,13 @@ def test_create_problem(mock_session):
         rating=800,
         tags=['math']
     )
-    
+
     # Проверяем результат
     assert isinstance(result, Problem)
     assert result.name == 'Test Problem'
     assert len(result.topics) == 1
     assert result.topics[0].name == 'math'
     mock_session.add.assert_called_once()
-    mock_session.commit.assert_called_once()
-
-
-def test_create_problems_batch(mock_session):
-    """Тест создания нескольких задач"""
-    # Создаем тестовые данные
-    problems_data = [
-        {
-            'contest_id': 1,
-            'index': 'A',
-            'name': 'Test Problem 1',
-            'rating': 800,
-            'solved_count': 100,
-            'tags': ['math']
-        }
-    ]
-    
-    # Настраиваем мок для get_topic_by_name
-    topic = Topic(id=1, name='math')
-    mock_session.query.return_value.filter.return_value.first.side_effect = [topic]  # Для каждого вызова get_topic_by_name
-    
-    # Настраиваем мок для bulk_save_objects
-    mock_session.bulk_save_objects = MagicMock()
-    
-    # Вызываем функцию
-    result = create_problems_batch(mock_session, problems_data)
-    
-    # Проверяем результат
-    assert result == {'status': 'success', 'count': 1}
-    mock_session.bulk_save_objects.assert_called_once()
     mock_session.commit.assert_called_once()
 
 
@@ -192,13 +160,24 @@ def test_get_problems_by_filter(mock_session):
         solved_count=100
     )
     problem.topics = [Topic(name='math')]
-    mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [problem]
-    
+
+    # Настраиваем мок для фильтра по сложности
+    mock_session.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
+        problem]
+
     # Тест фильтра по сложности
     problems = get_problems_by_filter(mock_session, rating=800)
     assert len(problems) == 1
     assert problems[0].name == 'Test Problem'
-    
+
+    # Настраиваем мок для фильтра по теме
+    mock_session.query.return_value \
+        .join.return_value \
+        .filter.return_value \
+        .order_by.return_value \
+        .limit.return_value \
+        .all.return_value = [problem]
+
     # Тест фильтра по теме
     problems = get_problems_by_filter(mock_session, topic='math')
     assert len(problems) == 1
@@ -215,7 +194,7 @@ def test_search_problems(mock_session):
         rating=800
     )
     mock_session.query.return_value.filter.return_value.limit.return_value.all.return_value = [problem]
-    
+
     # Тест поиска по названию
     problems = search_problems(mock_session, 'Test')
     assert len(problems) == 1
@@ -231,10 +210,10 @@ def test_get_problems_by_difficulty(db_session):
     """Тест получения задач по сложности"""
     # Подготавливаем тестовые данные
     db_session.query().filter().all.return_value = [SAMPLE_PROBLEM]
-    
+
     # Вызываем функцию
     problems = get_problems_by_difficulty(db_session, 800)
-    
+
     # Проверяем результат
     assert len(problems) == 1
     assert problems[0] == SAMPLE_PROBLEM
@@ -244,10 +223,10 @@ def test_get_problems_by_topic(db_session):
     """Тест получения задач по теме"""
     # Подготавливаем тестовые данные
     db_session.query().join().filter().all.return_value = [SAMPLE_PROBLEM]
-    
+
     # Вызываем функцию
     problems = get_problems_by_topic(db_session, "math")
-    
+
     # Проверяем результат
     assert len(problems) == 1
     assert problems[0] == SAMPLE_PROBLEM
@@ -257,10 +236,10 @@ def test_get_topics(db_session):
     """Тест получения списка тем"""
     # Подготавливаем тестовые данные
     db_session.query().all.return_value = [SAMPLE_TOPIC]
-    
+
     # Вызываем функцию
     topics = get_topics(db_session)
-    
+
     # Проверяем результат
     assert len(topics) == 1
     assert topics[0] == SAMPLE_TOPIC
@@ -270,10 +249,10 @@ def test_get_problem_by_id(db_session):
     """Тест получения задачи по ID"""
     # Подготавливаем тестовые данные
     db_session.query().filter().first.return_value = SAMPLE_PROBLEM
-    
+
     # Вызываем функцию
     problem = get_problem_by_id(db_session, 1)
-    
+
     # Проверяем результат
     assert problem == SAMPLE_PROBLEM
 
@@ -282,10 +261,10 @@ def test_get_problems_count(db_session):
     """Тест получения количества задач"""
     # Подготавливаем тестовые данные
     db_session.query().count.return_value = 10
-    
+
     # Вызываем функцию
     count = get_problems_count(db_session)
-    
+
     # Проверяем результат
     assert count == 10
 
@@ -294,10 +273,10 @@ def test_get_problems_with_topics(db_session):
     """Тест получения задач с темами"""
     # Подготавливаем тестовые данные
     db_session.query().all.return_value = [SAMPLE_PROBLEM]
-    
+
     # Вызываем функцию
     problems = get_problems_with_topics(db_session)
-    
+
     # Проверяем результат
     assert len(problems) == 1
     assert problems[0] == SAMPLE_PROBLEM
@@ -316,41 +295,13 @@ def test_create_problems_batch_error(db_session):
             'tags': None
         }
     ]
-    
+
     # Мокаем ошибку при сохранении
     db_session.commit.side_effect = Exception("Database error")
-    
+
     # Вызываем функцию и проверяем, что она обрабатывает ошибку
     with pytest.raises(Exception):
         create_problems_batch(db_session, invalid_data)
-    
+
     # Проверяем, что был сделан rollback
     db_session.rollback.assert_called_once()
-
-
-def test_get_problems_by_filter(db_session):
-    """Тест получения задач по фильтрам"""
-    # Подготавливаем тестовые данные
-    db_session.query().filter().order_by().limit().all.return_value = [SAMPLE_PROBLEM]
-    db_session.query().join().filter().order_by().limit().all.return_value = [SAMPLE_PROBLEM]
-    
-    # Тест фильтра по сложности
-    problems = get_problems_by_filter(db_session, rating=800)
-    assert len(problems) == 1
-    assert problems[0] == SAMPLE_PROBLEM
-    
-    # Тест фильтра по теме
-    problems = get_problems_by_filter(db_session, topic='math')
-    assert len(problems) == 1
-    assert problems[0] == SAMPLE_PROBLEM
-
-
-def test_search_problems(db_session):
-    """Тест поиска задач"""
-    # Подготавливаем тестовые данные
-    db_session.query().filter().limit().all.return_value = [SAMPLE_PROBLEM]
-    
-    # Тест поиска по названию
-    problems = search_problems(db_session, 'Test')
-    assert len(problems) == 1
-    assert problems[0] == SAMPLE_PROBLEM

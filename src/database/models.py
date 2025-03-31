@@ -11,6 +11,7 @@ problem_topic_association = Table(
     Column('topic_id', Integer, ForeignKey('topics.id', ondelete='CASCADE'), primary_key=True)
 )
 
+
 class Problem(Base):
     """Модель задачи с Codeforces"""
     __tablename__ = 'problems'

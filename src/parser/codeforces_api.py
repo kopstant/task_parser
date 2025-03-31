@@ -2,12 +2,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from typing import List, Dict, Tuple
-from datetime import datetime, UTC
 import logging
 import time
 from src.database.base import SessionLocal
 from src.database.crud import create_problems_batch
-from sqlalchemy import text, exc
+from sqlalchemy import text
 
 # Настройка логгирования
 logging.basicConfig(level=logging.INFO)
@@ -104,11 +103,11 @@ def save_problems_to_db(problems: List[Dict]) -> None:
         # Разбиваем задачи на пакеты
         for i in range(0, total_problems, BATCH_SIZE):
             batch = problems[i:i + BATCH_SIZE]
-            logger.info(f"Processing batch {i//BATCH_SIZE + 1} of {(total_problems + BATCH_SIZE - 1)//BATCH_SIZE}")
-            
+            logger.info(f"Processing batch {i // BATCH_SIZE + 1} of {(total_problems + BATCH_SIZE - 1) // BATCH_SIZE}")
+
             try:
                 create_problems_batch(db, batch)
-                logger.info(f"Batch {i//BATCH_SIZE + 1} saved successfully")
+                logger.info(f"Batch {i // BATCH_SIZE + 1} saved successfully")
             except Exception as e:
                 logger.error(f"Error saving batch: {str(e)}")
                 db.rollback()

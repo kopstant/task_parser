@@ -1,5 +1,4 @@
 from typing import List, Any, Optional
-from telegram.constants import ParseMode
 from datetime import datetime
 import logging
 import re

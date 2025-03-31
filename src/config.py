@@ -40,7 +40,8 @@ class Config:
         if url := os.getenv('DATABASE_URL'):
             return url
         password = self.POSTGRES_PASSWORD
-        return f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return (f"postgresql://{self.POSTGRES_USER}:{password}@{self.POSTGRES_HOST}:"
+                f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}")
 
     # Тестовая база данных
     @property

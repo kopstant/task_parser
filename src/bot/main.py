@@ -9,6 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def init_parser():
     """Инициализация парсера при запуске"""
     try:
@@ -18,10 +19,11 @@ async def init_parser():
     except Exception as e:
         logger.error(f"Error during initial parsing: {str(e)}")
 
+
 def main():
     # Инициализируем базу данных, создаем таблицы
     init_db()
-    
+
     # Запускаем первоначальный парсинг
     asyncio.get_event_loop().run_until_complete(init_parser())
 

@@ -8,6 +8,7 @@ from src.database.base import engine
 
 logger = logging.getLogger(__name__)
 
+
 def check_db_connection() -> bool:
     """Проверить подключение к базе данных"""
     try:
@@ -18,9 +19,11 @@ def check_db_connection() -> bool:
         logger.error(f"Database connection failed: {str(e)}")
         return False
 
+
 def get_topic_by_name(db: Session, name: str) -> Optional[Topic]:
     """Получить тему по имени"""
     return db.query(Topic).filter(Topic.name == name).first()
+
 
 def create_topic(db: Session, name: str) -> Topic:
     """Создать новую тему"""
@@ -30,6 +33,7 @@ def create_topic(db: Session, name: str) -> Topic:
     db.refresh(topic)
     return topic
 
+
 def get_or_create_topic(db: Session, name: str) -> Topic:
     """Получить существующую тему или создать новую"""
     topic = get_topic_by_name(db, name)
@@ -37,13 +41,14 @@ def get_or_create_topic(db: Session, name: str) -> Topic:
         topic = create_topic(db, name)
     return topic
 
+
 def create_problem(
-    db: Session,
-    contest_id: int,
-    index: str,
-    name: str,
-    rating: Optional[int] = None,
-    tags: Optional[List[str]] = None
+        db: Session,
+        contest_id: int,
+        index: str,
+        name: str,
+        rating: Optional[int] = None,
+        tags: Optional[List[str]] = None
 ) -> Problem:
     """Создать новую задачу"""
     problem = Problem(
@@ -59,24 +64,26 @@ def create_problem(
     db.refresh(problem)
     return problem
 
+
 def get_or_create_topics_batch(db: Session, topic_names: List[str]) -> Dict[str, Topic]:
     """Получить или создать несколько тем за один запрос"""
     # Получаем существующие темы
     existing_topics = db.query(Topic).filter(Topic.name.in_(topic_names)).all()
     existing_topic_names = {topic.name for topic in existing_topics}
-    
+
     # Создаем новые темы одним запросом
     new_topic_names = set(topic_names) - existing_topic_names
     if new_topic_names:
         new_topics = [Topic(name=name) for name in new_topic_names]
         db.bulk_save_objects(new_topics)
         db.commit()
-        
+
         # Получаем созданные темы
         new_topics = db.query(Topic).filter(Topic.name.in_(new_topic_names)).all()
         existing_topics.extend(new_topics)
-    
+
     return {topic.name: topic for topic in existing_topics}
+
 
 def create_problems_batch(db: Session, problems_data: List[Dict]) -> None:
     """Создать несколько задач за один запрос"""
@@ -124,14 +131,15 @@ def create_problems_batch(db: Session, problems_data: List[Dict]) -> None:
         # Сохраняем новые задачи
         if new_problems:
             db.bulk_save_objects(new_problems)
-        
+
         # Фиксируем все изменения
         db.commit()
-        
+
     except Exception as e:
         logger.error(f"Error in create_problems_batch: {str(e)}")
         db.rollback()
         raise
+
 
 def get_problem(db: Session, contest_id: int, index: str) -> Optional[Problem]:
     """Получить задачу по contest_id и индексу"""
@@ -141,6 +149,7 @@ def get_problem(db: Session, contest_id: int, index: str) -> Optional[Problem]:
             Problem.index == index
         )
     ).first()
+
 
 def get_problems_by_filter(
         db: Session,
@@ -164,6 +173,7 @@ def get_problems_by_filter(
     logger.debug(f"Found {len(result)} results")
     return result
 
+
 def search_problems(db: Session, search_term: str) -> List[Problem]:
     """Поиск задач по названию"""
     return db.query(Problem).filter(
@@ -173,25 +183,31 @@ def search_problems(db: Session, search_term: str) -> List[Problem]:
         )
     ).limit(10).all()
 
+
 def get_problems_by_difficulty(db: Session, rating: int) -> List[Problem]:
     """Получить задачи по сложности"""
     return db.query(Problem).filter(Problem.rating == rating).all()
+
 
 def get_problems_by_topic(db: Session, topic: str) -> List[Problem]:
     """Получить задачи по теме"""
     return db.query(Problem).join(Problem.topics).filter(Topic.name == topic).all()
 
+
 def get_topics(db: Session) -> List[Topic]:
     """Получить список всех тем"""
     return db.query(Topic).all()
+
 
 def get_problem_by_id(db: Session, problem_id: int) -> Optional[Problem]:
     """Получить задачу по ID"""
     return db.query(Problem).filter(Problem.id == problem_id).first()
 
+
 def get_problems_count(db: Session) -> int:
     """Получить общее количество задач"""
     return db.query(Problem).count()
+
 
 def get_problems_with_topics(db: Session) -> List[Problem]:
     """Получить все задачи с их темами"""

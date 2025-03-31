@@ -75,15 +75,14 @@ def mock_session():
 def mock_handlers():
     """Моки для обработчиков"""
     with patch('src.bot.handlers.start_command') as start_mock, \
-         patch('src.bot.handlers.help_command') as help_mock, \
-         patch('src.bot.handlers.get_random_problem') as random_mock, \
-         patch('src.bot.handlers.get_problem_by_rating') as rating_mock:
-        
+            patch('src.bot.handlers.help_command') as help_mock, \
+            patch('src.bot.handlers.get_random_problem') as random_mock, \
+            patch('src.bot.handlers.get_problem_by_rating') as rating_mock:
         start_mock.return_value = AsyncMock()
         help_mock.return_value = AsyncMock()
         random_mock.return_value = AsyncMock()
         rating_mock.return_value = AsyncMock()
-        
+
         yield {
             'start': start_mock,
             'help': help_mock,
